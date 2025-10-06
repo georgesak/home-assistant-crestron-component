@@ -4,18 +4,10 @@ import voluptuous as vol
 import logging
 
 import homeassistant.helpers.config_validation as cv
-from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate import ClimateEntity, ClimateEntityFeature
 from homeassistant.components.climate.const import (
-    SUPPORT_FAN_MODE,
-    SUPPORT_TARGET_TEMPERATURE_RANGE,
-    HVAC_MODE_OFF,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_COOL,
-    HVAC_MODE_HEAT_COOL,
-    CURRENT_HVAC_OFF,
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_COOL,
-    CURRENT_HVAC_IDLE,
+    HVACMode,
+    HVACAction,
     FAN_ON,
     FAN_AUTO,
 )
@@ -47,7 +39,7 @@ PLATFORM_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME): cv.string,
         vol.Required(CONF_HEAT_SP_JOIN): cv.positive_int,
-        vol.Required(CONF_COOL_SP_JOIN): cv.positive_int,           
+        vol.Required(CONF_COOL_SP_JOIN): cv.positive_int,
         vol.Required(CONF_REG_TEMP_JOIN): cv.positive_int,
         vol.Required(CONF_MODE_HEAT_JOIN): cv.positive_int,
         vol.Required(CONF_MODE_COOL_JOIN): cv.positive_int,
@@ -74,13 +66,15 @@ class CrestronThermostat(ClimateEntity):
     def __init__(self, hub, config, unit):
         self._hub = hub
         self._hvac_modes = [
-            HVAC_MODE_HEAT_COOL,
-            HVAC_MODE_HEAT,
-            HVAC_MODE_COOL,
-            HVAC_MODE_OFF,
+            HVACMode.HEAT_COOL,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.OFF,
         ]
         self._fan_modes = [FAN_ON, FAN_AUTO]
-        self._supported_features = SUPPORT_FAN_MODE | SUPPORT_TARGET_TEMPERATURE_RANGE
+        self._attr_supported_features = (
+            ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+        )
         self._should_poll = False
         self._temperature_unit = unit
 
@@ -128,7 +122,7 @@ class CrestronThermostat(ClimateEntity):
 
     @property
     def supported_features(self):
-        return self._supported_features
+        return self._attr_supported_features
 
     @property
     def should_poll(self):
@@ -153,13 +147,13 @@ class CrestronThermostat(ClimateEntity):
     @property
     def hvac_mode(self):
         if self._hub.get_digital(self._mode_auto_join):
-            return HVAC_MODE_HEAT_COOL
+            return HVACMode.HEAT_COOL
         if self._hub.get_digital(self._mode_heat_join):
-            return HVAC_MODE_HEAT
+            return HVACMode.HEAT
         if self._hub.get_digital(self._mode_cool_join):
-            return HVAC_MODE_COOL
+            return HVACMode.COOL
         if self._hub.get_digital(self._mode_off_join):
-            return HVAC_MODE_OFF
+            return HVACMode.OFF
 
     @property
     def fan_mode(self):
@@ -171,33 +165,33 @@ class CrestronThermostat(ClimateEntity):
     @property
     def hvac_action(self):
         if self._hub.get_digital(self._h1_join) or self._hub.get_digital(self._h2_join):
-            return CURRENT_HVAC_HEAT
+            return HVACAction.HEATING
         elif self._hub.get_digital(self._c1_join) or self._hub.get_digital(self._c2_join):
-            return CURRENT_HVAC_COOL
+            return HVACAction.COOLING
         else:
-            return CURRENT_HVAC_IDLE
+            return HVACAction.IDLE
 
     @property
     def unique_id(self):
         return self._unique_id
 
     async def async_set_hvac_mode(self, hvac_mode):
-        if hvac_mode == HVAC_MODE_HEAT_COOL:
+        if hvac_mode == HVACMode.HEAT_COOL:
             self._hub.set_digital(self._mode_cool_join, False)
             self._hub.set_digital(self._mode_off_join, False)
             self._hub.set_digital(self._mode_heat_join, False)
             self._hub.set_digital(self._mode_auto_join, True)
-        if hvac_mode == HVAC_MODE_HEAT:
+        if hvac_mode == HVACMode.HEAT:
             self._hub.set_digital(self._mode_auto_join, False)
             self._hub.set_digital(self._mode_cool_join, False)
             self._hub.set_digital(self._mode_off_join, False)
             self._hub.set_digital(self._mode_heat_join, True)
-        if hvac_mode == HVAC_MODE_COOL:
+        if hvac_mode == HVACMode.COOL:
             self._hub.set_digital(self._mode_auto_join, False)
             self._hub.set_digital(self._mode_off_join, False)
             self._hub.set_digital(self._mode_heat_join, False)
             self._hub.set_digital(self._mode_cool_join, True)
-        if hvac_mode == HVAC_MODE_OFF:
+        if hvac_mode == HVACMode.OFF:
             self._hub.set_digital(self._mode_auto_join, False)
             self._hub.set_digital(self._mode_cool_join, False)
             self._hub.set_digital(self._mode_heat_join, False)
